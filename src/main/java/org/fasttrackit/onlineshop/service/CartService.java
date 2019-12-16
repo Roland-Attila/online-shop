@@ -6,11 +6,17 @@ import org.fasttrackit.onlineshop.domain.Product;
 import org.fasttrackit.onlineshop.exeption.ResourceNotFoundExeption;
 import org.fasttrackit.onlineshop.persistance.CartRepository;
 import org.fasttrackit.onlineshop.transfer.AddProductToCartRequest;
+import org.fasttrackit.onlineshop.transfer.CartResponse;
+import org.fasttrackit.onlineshop.transfer.ProductInCartResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Set;
 
 @Service
 public class CartService {
@@ -46,9 +52,27 @@ public class CartService {
         cartRepository.save(cart);
     }
 
-    public Cart getCart(long id) {
+    @Transactional
+    public CartResponse getCart(long id) {
         LOGGER.info("Retrieving cart {}", id);
-        return cartRepository.findById(id).orElseThrow(() ->
+        Cart cart = cartRepository.findById(id).orElseThrow(() ->
                 new ResourceNotFoundExeption("Cart " + id + " does not exist."));
+        CartResponse response = new CartResponse();
+        response.setId(cart.getId());
+
+        Set<ProductInCartResponse> productsInCart = new HashSet<>();
+        Iterator<Product> cartIterator = cart.getProducts().iterator();
+        while (cartIterator.hasNext()) {
+            Product product = cartIterator.next();
+
+            ProductInCartResponse productResponse = new ProductInCartResponse();
+            productResponse.setId(product.getId());
+            productResponse.setName(product.getName());
+            productResponse.setPrice(product.getPrice());
+
+            productsInCart.add(productResponse);
+        }
+        response.setProducts(productsInCart);
+        return response;
     }
 }
