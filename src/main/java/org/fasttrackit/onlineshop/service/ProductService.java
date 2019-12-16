@@ -5,14 +5,20 @@ import org.fasttrackit.onlineshop.domain.Product;
 import org.fasttrackit.onlineshop.exeption.ResourceNotFoundExeption;
 import org.fasttrackit.onlineshop.persistance.ProductRepository;
 import org.fasttrackit.onlineshop.transfer.GetProductsRequest;
+import org.fasttrackit.onlineshop.transfer.ProductResponse;
 import org.fasttrackit.onlineshop.transfer.SaveProductRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class ProductService {
@@ -51,16 +57,34 @@ public class ProductService {
                 ("Product " + id + " does not exist."));
     }
 
-    public Page<Product> getProducts(GetProductsRequest request, Pageable pageable) {
+    @Transactional
+    public Page<ProductResponse> getProducts(GetProductsRequest request, Pageable pageable) {
         LOGGER.info("Retrieving products: {}", request);
+        Page<Product> products;
+
         if (request != null && request.getPartialName() != null && request.getMinQuantity() != null) {
-            return productRepository.findByNameContainingAndQuantityGreaterThanEqual
+            products = productRepository.findByNameContainingAndQuantityGreaterThanEqual
                     (request.getPartialName(), request.getMinQuantity(), pageable);
         } else if (request != null && request.getPartialName() != null) {
-            return productRepository.findByNameContaining(request.getPartialName(), pageable);
+            products = productRepository.findByNameContaining(request.getPartialName(), pageable);
         }else {
-            return productRepository.findAll(pageable);
+            products = productRepository.findAll(pageable);
         }
+
+        List<ProductResponse> productResponses = new ArrayList<>();
+
+        for (Product product : products.getContent()) {
+            ProductResponse productResponse = new ProductResponse();
+            productResponse.setId(product.getId());
+            productResponse.setName(product.getName());
+            productResponse.setDescription(product.getDescription());
+            productResponse.setPrice(product.getPrice());
+            productResponse.setQuantity(product.getQuantity());
+            productResponse.setImageUrl(product.getImageUrl());
+
+            productResponses.add(productResponse);
+        }
+        return new PageImpl<>(productResponses, pageable, products.getTotalElements());
     }
 
     public Product updateProduct(long id, SaveProductRequest request) {
